@@ -56,6 +56,11 @@ void Matrix_set(Matrix mat, unsigned r, unsigned c, float val){
   mat.data[r * mat.c + c] = val;
 }
 
+void Matrix_randomize(Matrix mat){
+  for(unsigned long long i = 0; i < mat.r * mat.c; i++)
+    mat.data[i] = (float) rand() / (float) RAND_MAX;
+}
+
 void Matrix_add(Matrix dst, Matrix val){
   if(dst.r != val.r || dst.c != val.c) return;
   for(unsigned long long i = 0; i < dst.r * dst.c; i++)
@@ -85,9 +90,13 @@ Matrix Matrix_extractRow(Matrix m, unsigned r){
   return ret;
 }
 
-void Matrix_free(Matrix *mat){
+void Matrix_destroy(Matrix *mat){
   free(mat->data);
   *mat = (Matrix){0, 0, 0};
+}
+
+void Matrix_free(Matrix mat){
+  free(mat.data);
 }
 
 void Matrix_overwrite(Matrix *var, Matrix val){
