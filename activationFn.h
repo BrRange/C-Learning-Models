@@ -4,8 +4,7 @@
 #include <math.h>
 
 float ModelSigmoid(float inp){
-  float ex = expf(inp);
-  return ex / (1.f + ex);
+  return 1.f / (1.f + expf(-inp));
 }
 
 float ModelRectify(float inp){
