@@ -11,7 +11,7 @@ float ModelRectify(float inp){
   return inp <= 0.f ? 0.f : inp;
 }
 
-float ModelHeavyside(float inp){
+float ModelHeaviside(float inp){
   return inp >= 0.f ? 1.f : 0.f;
 }
 

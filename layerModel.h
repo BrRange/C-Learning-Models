@@ -52,8 +52,10 @@ LayerModel newLayerModel(size_t layers, unsigned inp, ...){
 }
 
 void outputLayerModel(LayerModel model, Matrix in, Matrix *out){
-  for (size_t i = 0; i < model.layerSize; ++i)
-    outputLayer(model.layer[i], in, out);
+  outputLayer(model.layer[0], in, out);
+  for (size_t i = 1; i < model.layerSize; ++i){
+    outputLayer(model.layer[i], *out, out);
+  }
 }
 
 float costLayerModel(LayerModel lm, LayerData ld){
@@ -76,23 +78,24 @@ float costLayerModel(LayerModel lm, LayerData ld){
 void trainLayerModel(LayerModel lm, LayerData ld, float eps, float rate){
   float original, dcost;
   for (size_t l = 0; l < lm.layerSize; ++l) {
-    Matrix sW = lm.layer[l].weight, sB = lm.layer[l].bias;
-    for (size_t i = 0; i < sW.r * sW.c; ++i){
-      original = sW.data[i];
-      sW.data[i] += eps;
+    Layer ly = lm.layer[l];
+    for (size_t i = 0; i < ly.weight.r * ly.weight.c; ++i){
+      original = ly.weight.data[i];
+      ly.weight.data[i] -= eps;
       dcost = costLayerModel(lm, ld);
-      sW.data[i] = original;
-      dcost -= costLayerModel(lm, ld);
-      dcost /= eps;
-      sW.data[i] = original - rate * dcost;
-    }
-    for (unsigned j = 0; j < sB.c; ++j){
-      original = sB.data[j];
-      dcost = costLayerModel(lm, ld);
-      sB.data[j] += eps;
+      ly.weight.data[i] = original + eps;
       dcost = costLayerModel(lm, ld) - dcost;
-      dcost /= eps;
-      sB.data[j] = original - rate * dcost;
+      dcost /= 2.f * eps;
+      ly.weight.data[i] = original - rate * dcost;
+    }
+    for (unsigned j = 0; j < ly.bias.c; ++j){
+      original = ly.bias.data[j];
+      ly.bias.data[j] -= eps;
+      dcost = costLayerModel(lm, ld);
+      ly.bias.data[j] = original + eps;
+      dcost = costLayerModel(lm, ld) - dcost;
+      dcost /= 2.f * eps;
+      ly.bias.data[j] = original - rate * dcost;
     }
   }
 }
