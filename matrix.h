@@ -58,7 +58,7 @@ void Matrix_set(Matrix mat, unsigned r, unsigned c, float val){
 
 void Matrix_randomize(Matrix mat){
   for(unsigned long long i = 0; i < mat.r * mat.c; i++)
-    Matrix_set(mat, 0, i, (float) rand() / (float) RAND_MAX);
+    Matrix_set(mat, 0, i, (float) rand() / (float) RAND_MAX * 2.f - 1.f);
 }
 
 void Matrix_add(Matrix dst, Matrix val){
@@ -80,14 +80,6 @@ Matrix Matrix_mul(Matrix a, Matrix b){
 void Matrix_applyFn(Matrix m, float (*fn)(float)){
   for(unsigned long long i = 0; i < m.r * m.c; i++)
     m.data[i] = fn(m.data[i]);
-}
-
-Matrix Matrix_extractRow(Matrix m, unsigned r){
-  Matrix ret = Matrix_new(1, m.c);
-  float *row = Matrix_get(m, r, 0);
-  for(unsigned i = 0; i < m.c; i++)
-    ret.data[i] = row[i];
-  return ret;
 }
 
 void Matrix_destroy(Matrix *mat){
@@ -150,17 +142,6 @@ float Matrix_determinant(Matrix mat){
     }
     return coSum;
   }
-}
-
-void printMat(Matrix m){
-  for(unsigned i = 0; i < m.r; i++){
-    putchar('|');
-    for(unsigned j = 0; j < m.c; j++){
-      printf("%.2f\t", Matrix_read(m, i, j));
-    }
-    puts("|");
-  }
-  putchar(10);
 }
 
 #endif

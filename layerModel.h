@@ -42,7 +42,7 @@ LayerModel newLayerModel(size_t layers, unsigned inp, ...){
   LayerModel lm = {layers, malloc(layers * sizeof(Layer))};
   va_list args;
   va_start(args, inp);
-  for(size_t i = 0; i < layers; ++i){
+  for(size_t i = 0; i < layers; i++){
     unsigned next = va_arg(args, unsigned);
     lm.layer[i] = newLayer(inp, next);
     inp = next;
@@ -51,27 +51,30 @@ LayerModel newLayerModel(size_t layers, unsigned inp, ...){
   return lm;
 }
 
-void outputLayerModel(LayerModel model, Matrix in, Matrix *out){
-  outputLayer(model.layer[0], in, out);
-  for (size_t i = 1; i < model.layerSize; ++i){
-    outputLayer(model.layer[i], *out, out);
+void outputLayerModel(LayerModel lm, Matrix in, Matrix *out){
+  Matrix_overwrite(out, Matrix_new(in.r, lm.layer[lm.layerSize - 1ull].weight.c));
+  Matrix subOut = {};
+  for(unsigned u = 0; u < in.r; u++){
+    Matrix subIn = {1, in.c, Matrix_get(in, u, 0)};
+    outputLayer(lm.layer[0], subIn, &subOut);
+    for (size_t i = 1; i < lm.layerSize; i++){
+      outputLayer(lm.layer[i], subOut, &subOut);
+    }
+    for(unsigned v = 0; v < subOut.c; v++)
+      Matrix_set(*out, u, v, subOut.data[v]);
   }
+  Matrix_free(subOut);
 }
 
 float costLayerModel(LayerModel lm, LayerData ld){
   float total = 0.0f;
-  Matrix aux1 = {}, aux2 = {};
-  for (unsigned i = 0; i < ld.input.r; ++i) {
-    Matrix_overwrite(&aux1, Matrix_extractRow(ld.input, i));
-    outputLayerModel(lm, aux1, &aux2);
-
-    for (unsigned j = 0; j < ld.output.c; ++j){
-      float diff = aux2.data[j] - Matrix_read(ld.output, i, j);
-      total += diff * diff;
-    }
+  Matrix aux = {};
+  outputLayerModel(lm, ld.input, &aux);
+  for (size_t i = 0; i < aux.r * aux.c; i++){
+    float diff = aux.data[i] - ld.output.data[i];
+    total += diff * diff;
   }
-  Matrix_free(aux1);
-  Matrix_free(aux2);
+  Matrix_free(aux);
   return total / ld.input.r;
 }
 
@@ -79,7 +82,7 @@ void trainLayerModel(LayerModel lm, LayerData ld, float eps, float rate){
   float original, dcost;
   for (size_t l = 0; l < lm.layerSize; ++l) {
     Layer ly = lm.layer[l];
-    for (size_t i = 0; i < ly.weight.r * ly.weight.c; ++i){
+    for (size_t i = 0; i < ly.weight.r * ly.weight.c; i++){
       original = ly.weight.data[i];
       ly.weight.data[i] -= eps;
       dcost = costLayerModel(lm, ld);
@@ -88,7 +91,7 @@ void trainLayerModel(LayerModel lm, LayerData ld, float eps, float rate){
       dcost /= 2.f * eps;
       ly.weight.data[i] = original - rate * dcost;
     }
-    for (unsigned j = 0; j < ly.bias.c; ++j){
+    for (unsigned j = 0; j < ly.bias.c; j++){
       original = ly.bias.data[j];
       ly.bias.data[j] -= eps;
       dcost = costLayerModel(lm, ld);
@@ -101,7 +104,7 @@ void trainLayerModel(LayerModel lm, LayerData ld, float eps, float rate){
 }
 
 void freeLayerModel(LayerModel lm){
-  for(size_t i = 0; i < lm.layerSize; ++i)
+  for(size_t i = 0; i < lm.layerSize; i++)
     freeLayer(lm.layer[i]);
   free(lm.layer);
 }
@@ -118,10 +121,10 @@ void fillLayerData(LayerData ld, ...){
   unsigned ic = ld.input.c, oc = ld.output.c;
   va_list args;
   va_start(args, ld);
-  for (unsigned i = 0; i < ld.input.r; ++i) {
-    for (unsigned j = 0; j < ic; ++j)
+  for (unsigned i = 0; i < ld.input.r; i++) {
+    for (unsigned j = 0; j < ic; j++)
       Matrix_set(ld.input, i, j, va_arg(args, double));
-    for (unsigned j = 0; j < oc; ++j)
+    for (unsigned j = 0; j < oc; j++)
       Matrix_set(ld.output, i, j, va_arg(args, double));
   }
   va_end(args);
