@@ -1,50 +1,40 @@
 #include <stdio.h> 
 #include <stdlib.h> 
-#include "Tokenizer.h"
+#include "LayerModel.h"
 
-void printTokenizer(Tokenizer tokenizer){
-  for(size_t i = 0; i < tokenizer.token->count; i++){
-    unsigned key = tokenizer.token->items[i];
-    assert(key < tokenizer.pairMap->count);
-    if(tokenizer.pairMap->items[key].a == key){
-      printf("%c", key);
-    } else{
-      printf("[%u]", key);
+void printMat(Mat m){
+  for(unsigned i = 0; i < m.r; i++){
+    putchar('|');
+    for(unsigned j = 0; j < m.c; j++){
+      printf("%.2f\t", readMat(m, i, j));
     }
+    puts("|");
   }
-  printf("\n");
+  putchar(10);
 }
 
 int main(int argc, const char **argv){
-  if(argc < 3){
-    puts("Tokenizer [read|dump] [file]");
-    return 1;
-  }
-  Tokenizer tokenizer = newTokenizer();
+  LayerModel lm = newLayerModel(2ull, 2, 2, 1);
+  lm.loss = LossBinary;
+  lm.layer[0].act = LayerSigmoid;
 
-  const char *filename = argv[2];
-  FILE *fp = fopen(filename, "r");
-  if (!fp){
-    printf("Error: could not open file %s", filename);
-    return 1;
-  }
-  if(argv[1][0] == 'r'){
-    readTokenizer(tokenizer, fp);
+  LayerData ld = newLayerData(lm, 4);
+  fillLayerData(ld,
+    0.f, 0.f, 0.f,
+    1.f, 0.f, 1.f,
+    0.f, 1.f, 1.f,
+    1.f, 1.f, 0.f
+  );
 
-    return 0;
-  }
+  Mat input = copyMat(ld.input), output = {};
 
-  initTokenizer(&tokenizer, fp);
-  fclose(fp);
-  filename = argc > 2 ? argv[3] : "TokenDump";
+  for(int i = 0; i < 10000; i++) trainLayerModel(lm, ld, 1e-2f, 1e-2f);
+  freeLayerData(ld);
 
-  bakeTokenizer(tokenizer);
-  
-  if(dumpTokenizer(tokenizer, filename) == 0){
-    puts("Failed to dump the tokenizer");
-  } else{
-    puts("Tokenizer dumped");
-  }
+  outputLayerModel(lm, input, &output);
+  freeLayerModel(lm);
+  freeMat(input);
 
-  freeTokenizer(tokenizer);
+  printMat(output);
+  freeMat(output);
 }

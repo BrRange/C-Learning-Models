@@ -1,11 +1,11 @@
 #ifndef LAYERMODELH
 #define LAYERMODELH
 
-#include "matrix.h"
+#include "activationFn.h"
 
 struct Layer{
   Mat weight, bias;
-  float (*act)(float);
+  void (*act)(Mat);
 };
 typedef struct Layer Layer;
 
@@ -19,7 +19,7 @@ Layer newLayer(unsigned inp, unsigned out){
 void outputLayer(Layer ly, Mat in, Mat *out){
   overwriteMat(out, composeMat(in, ly.weight));
   addMat(*out, ly.bias);
-  if (ly.act) applyFnMat(*out, ly.act);
+  if (ly.act) ly.act(*out);
 }
 
 void freeLayer(Layer ly){
@@ -30,6 +30,7 @@ void freeLayer(Layer ly){
 struct LayerModel{
   size_t layerSize;
   Layer *layer;
+  float (*loss)(Mat, Mat);
 };
 typedef struct LayerModel LayerModel;
 
@@ -39,7 +40,7 @@ struct LayerData{
 typedef struct LayerData LayerData;
 
 LayerModel newLayerModel(size_t layers, unsigned inp, ...){
-  LayerModel lm = {layers, malloc(layers * sizeof(Layer))};
+  LayerModel lm = {layers, malloc(layers * sizeof(Layer)), LossSquared};
   va_list args;
   va_start(args, inp);
   for(size_t i = 0; i < layers; i++){
@@ -67,13 +68,9 @@ void outputLayerModel(LayerModel lm, Mat in, Mat *out){
 }
 
 float costLayerModel(LayerModel lm, LayerData ld){
-  float total = 0.0f;
   Mat aux = {};
   outputLayerModel(lm, ld.input, &aux);
-  for (size_t i = 0; i < aux.r * aux.c; i++){
-    float diff = aux.data[i] - ld.output.data[i];
-    total += diff * diff;
-  }
+  float total = lm.loss(aux, ld.output);
   freeMat(aux);
   return total / ld.input.r;
 }

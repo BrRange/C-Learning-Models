@@ -35,6 +35,7 @@ int main(int argc, const char **argv){
   initTokenizer(&tokenizer, fp);
   fclose(fp);
   filename = argc > 2 ? argv[2] : "TokenDump";
+  
   bakeTokenizer(tokenizer);
   
   if(dumpTokenizer(tokenizer, filename) == 0){

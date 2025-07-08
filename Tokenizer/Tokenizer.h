@@ -86,42 +86,60 @@ ptrdiff_t maxIndexHash(Hash **hash){
 
 void bakeTokenizer(Tokenizer tokenizer){
   Hash *hashArray = 0;
-  Token out = {};
   size_t iteCount = 0;
+
+  for(size_t i = 0; i < tokenizer.token->count - 1; i++){
+    Pair sample = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
+    ptrdiff_t serial = hmgeti(hashArray, sample);
+    if(serial < 0)
+      hmput(hashArray, sample, 1);
+    else
+      hashArray[serial].value += 1;
+  }
+
   for(;;){
     if(iteCount % 0x4FF); else printf("Iteration %zu\n", iteCount);
-    for(size_t i = 0; i < tokenizer.token->count - 1; i++){
-      Pair sample = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
-      ptrdiff_t serial = hmgeti(hashArray, sample);
-      if(serial < 0)
-        hmput(hashArray, sample, 1);
-      else
-        hashArray[serial].value += 1;
-    }
     ptrdiff_t maxIndex = maxIndexHash(&hashArray);
     if(maxIndex <= 1) break;
-    da_append(tokenizer.pairMap, (hashArray)[maxIndex].key);
+    Pair maxPair = hashArray[maxIndex].key;
+    unsigned maxToken = tokenizer.pairMap->count;
+    da_append(tokenizer.pairMap, maxPair);
     for(size_t i = 0; i < tokenizer.token->count; i++){
       if(i + 1 >= tokenizer.token->count){
         da_append(&out, tokenizer.token->items[i]);
-        continue;
+        break;
       }
       Pair inPlace = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
-      if(memcmp(&inPlace, &((hashArray)[maxIndex].key), sizeof(inPlace)) == 0){
-        da_append(&out, tokenizer.pairMap->count - 1);
+      if(memcmp(&inPlace, &maxPair, sizeof(Pair)) == 0){
+        if(i){
+          inPlace.a = tokenizer.token->items[i - 1];
+          inPlace.b = tokenizer.token->items[i];
+          maxIndex = hmgeti(hashArray, inPlace);
+          assert(maxIndex >= 0);
+          assert(hashArray[maxIndex].value > 0);
+          hashArray[maxIndex].value--;
+          inPlace.b = maxToken;
+          maxIndex = hmgeti(hashArray, inPlace);
+          if(maxIndex < 0) hmput(hashArray, inPlace, 1);
+          else hashArray[maxIndex].value++;
+        }
+        maxIndex = hmgeti(hashArray, maxPair);
+        assert(maxIndex >= 0);
+        assert(hashArray[maxIndex].value > 0);
+        hashArray[maxIndex].value--;
+        da_append(&out, maxToken);
         i++;
+        if(i + 1 >= tokenizer.token->count){
+          inPlace.a = tokenizer.token->items[i];
+          inPlace.b = tokenizer.token->items[i + 1];
+        }
       } else{
         da_append(&out, tokenizer.token->items[i]);
       }
     }
-    Token temp = *tokenizer.token;
-    *tokenizer.token = out;
-    out = temp;
-    out.count = 0;
-    hmfree(hashArray);
     iteCount++;
   }
-  da_free(out);
+  hmfree(hashArray);
 }
 
 void getTokenText(String_Builder *strb, unsigned key, PairMap *pairMap){

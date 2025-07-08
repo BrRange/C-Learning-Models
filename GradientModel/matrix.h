@@ -88,16 +88,6 @@ Mat composeMat(Mat a, Mat b){
   return mat;
 }
 
-void applyFnMat(Mat mat, float (*fn)(float, int)){
-  for(unsigned long long i = 0; i < mat.r * mat.c; i++)
-    mat.data[i] = fn(mat.data[i], 0);
-}
-
-void applyDxMat(Mat mat, float (*fn)(float, int)){
-  for(unsigned long long i = 0; i < mat.r * mat.c; i++)
-    mat.data[i] = fn(mat.data[i], 1);
-}
-
 void destroyMat(Mat *mat){
   free(mat->data);
   *mat = (Mat){0, 0, 0};
