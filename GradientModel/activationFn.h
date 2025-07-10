@@ -4,6 +4,34 @@
 #include "matrix.h"
 #include <math.h>
 
+void LayerSigmoid(Mat out);
+void LayerRectify(Mat out);
+void LayerHeaviside(Mat out);
+void LayerSoftmax(Mat out);
+enum LayerFunc{
+  EnumLayerLinear,
+  EnumLayerSigmoid,
+  EnumLayerRectify,
+  EnumLayerHeaviside,
+  EnumLayerSoftmax
+};
+extern void (*LayerFuncList[])(Mat);
+float LossSquared(Mat out, Mat targ);
+float LossAbsolute(Mat out, Mat targ);
+float LossCategory(Mat out, Mat targ);
+float LossBinary(Mat out, Mat targ);
+enum LossFunc{
+  EnumLossSquared,
+  EnumLossAbsolute,
+  EnumLossCategory,
+  EnumLossBinary
+};
+extern float (*LossFuncList[])(Mat, Mat);
+
+#endif
+
+#ifdef ACTIVATIONFNIMPL
+
 void LayerSigmoid(Mat inp){
   float val;
   for(size_t i = 0; i < inp.r * inp.c; i++){
@@ -33,11 +61,19 @@ void LayerSoftmax(Mat inp){
   for(unsigned i = 0; i < inp.r; i++){
     total = 0.f;
     for(unsigned j = 0; j < inp.c; j++)
-      total += readMat(inp, i, j);
+      total += expf(readMat(inp, i, j));
     for(unsigned j = 0; j < inp.c; j++)
-      *viewMat(inp, i, j) /= total;
+      setMat(inp, i, j, expf(readMat(inp, i, j)) / total);
   }
 }
+
+void (*LayerFuncList[])(Mat) = {
+  NULL,
+  LayerSigmoid,
+  LayerRectify,
+  LayerHeaviside,
+  LayerSoftmax
+};
 
 float LossSquared(Mat out, Mat targ){
   float total = 0.f;
@@ -60,22 +96,29 @@ float LossAbsolute(Mat out, Mat targ){
 float LossCategory(Mat out, Mat targ){
   float total = 0.f;
   for (size_t i = 0; i < out.r * out.c; i++){
-    float y = targ.data[i], dy = out.data[i];
-    if(dy <= 0.f) dy = 1e-7f;
-    total -= y * log(dy);
+    float y = targ.data[i], py = out.data[i];
+    if(py <= 0.f) py = 1e-7f;
+    total += y * log(py);
   }
-  return total;
+  return -total;
 }
 
 float LossBinary(Mat out, Mat targ){
   float total = 0.f;
   for (size_t i = 0; i < out.r * out.c; i++){
-    float y = targ.data[i], dy = out.data[i];
-    if(dy <= 0.f) dy = 1e-7f;
-    if(dy >= 1.f) dy = 1.f - 1e-7f;
-    total -= y * log(dy) + (1.f - y) * log(1.f - dy);
+    float y = targ.data[i], py = out.data[i];
+    if(py <= 0.f) py = 1e-7f;
+    if(py >= 1.f) py = 1.f - 1e-7f;
+    total -= y * log(py) + (1.f - y) * log(1.f - py);
   }
   return total;
 }
+
+float (*LossFuncList[])(Mat, Mat) = {
+  LossSquared,
+  LossAbsolute,
+  LossCategory,
+  LossBinary
+};
 
 #endif

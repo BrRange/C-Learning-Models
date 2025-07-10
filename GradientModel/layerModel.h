@@ -3,14 +3,35 @@
 
 #include "activationFn.h"
 
+struct Layer;
+typedef struct Layer Layer;
+Layer newLayer(unsigned inp, unsigned out);
+void outputLayer(Layer, Mat in, Mat *out);
+void freeLayer(Layer);
+struct LayerModel;
+typedef struct LayerModel LayerModel;
+struct LayerData;
+typedef struct LayerData LayerData;
+LayerModel newLayerModel(size_t layers, unsigned inp, ...);
+void outputLayerModel(LayerModel, Mat in, Mat *out);
+float costLayerModel(LayerModel, LayerData);
+void trainLayerModel(LayerModel, LayerData, float eps, float rate);
+void freeLayerModel(LayerModel);
+LayerData newLayerData(LayerModel, unsigned exampleAmount);
+void fillLayerData(LayerData, ...);
+void freeLayerData(LayerData);
+
+#endif
+
+#ifdef LAYERMODELIMPL
+
 struct Layer{
   Mat weight, bias;
-  void (*act)(Mat);
+  enum LayerFunc act;
 };
-typedef struct Layer Layer;
 
 Layer newLayer(unsigned inp, unsigned out){
-  Layer ly = {newMat(inp, out), newMat(1, out), 0};
+  Layer ly = {newMat(inp, out), newMat(1, out), EnumLayerLinear};
   randMat(ly.weight);
   randMat(ly.bias);
   return ly;
@@ -19,7 +40,7 @@ Layer newLayer(unsigned inp, unsigned out){
 void outputLayer(Layer ly, Mat in, Mat *out){
   overwriteMat(out, composeMat(in, ly.weight));
   addMat(*out, ly.bias);
-  if (ly.act) ly.act(*out);
+  if (ly.act) LayerFuncList[ly.act](*out);
 }
 
 void freeLayer(Layer ly){
@@ -30,17 +51,15 @@ void freeLayer(Layer ly){
 struct LayerModel{
   size_t layerSize;
   Layer *layer;
-  float (*loss)(Mat, Mat);
+  enum LossFunc loss;
 };
-typedef struct LayerModel LayerModel;
 
 struct LayerData{
   Mat input, output;
 };
-typedef struct LayerData LayerData;
 
 LayerModel newLayerModel(size_t layers, unsigned inp, ...){
-  LayerModel lm = {layers, malloc(layers * sizeof(Layer)), LossSquared};
+  LayerModel lm = {layers, malloc(layers * sizeof(Layer)), EnumLossSquared};
   va_list args;
   va_start(args, inp);
   for(size_t i = 0; i < layers; i++){
@@ -70,7 +89,7 @@ void outputLayerModel(LayerModel lm, Mat in, Mat *out){
 float costLayerModel(LayerModel lm, LayerData ld){
   Mat aux = {};
   outputLayerModel(lm, ld.input, &aux);
-  float total = lm.loss(aux, ld.output);
+  float total = LossFuncList[lm.loss](aux, ld.output);
   freeMat(aux);
   return total / ld.input.r;
 }
