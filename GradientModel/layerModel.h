@@ -139,6 +139,19 @@ void fillLayerData(LayerData ld, ...){
   va_start(args, ld);
   for (unsigned i = 0; i < ld.input.r; i++) {
     for (unsigned j = 0; j < ic; j++)
+      setMat(ld.input, i, j, va_arg(args, int));
+    for (unsigned j = 0; j < oc; j++)
+      setMat(ld.output, i, j, va_arg(args, int));
+  }
+  va_end(args);
+}
+
+void fillfLayerData(LayerData ld, ...){
+  unsigned ic = ld.input.c, oc = ld.output.c;
+  va_list args;
+  va_start(args, ld);
+  for (unsigned i = 0; i < ld.input.r; i++) {
+    for (unsigned j = 0; j < ic; j++)
       setMat(ld.input, i, j, va_arg(args, double));
     for (unsigned j = 0; j < oc; j++)
       setMat(ld.output, i, j, va_arg(args, double));

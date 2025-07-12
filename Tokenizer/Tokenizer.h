@@ -74,9 +74,27 @@ int comapareHashDes(const void *a, const void *b){
   return (int)hashB->value - (int)hashA->value;
 }
 
+void increaseHash(Hash **hash, Pair pair){
+  ptrdiff_t index = hmgeti(*hash, pair);
+  if(index < 0) hmput(*hash, pair, 1);
+  else (*hash)[index].value++;
+}
+
+void decreaseHash(Hash **hash, Pair pair){
+  ptrdiff_t index = hmgeti(*hash, pair);
+  (*hash)[index].value--;
+}
+
+void buildHash(Hash **hash, Tokenizer tokenizer){
+  for(size_t i = 0; i < tokenizer.token->count - 1; i++){
+    Pair sample = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
+    increaseHash(hash, sample);
+  }
+}
+
 ptrdiff_t maxIndexHash(Hash **hash){
   ptrdiff_t maxIndex = 0;
-  for(size_t i = 0; i < hmlenu(*hash); i++){
+  for(size_t i = 1; i < hmlenu(*hash); i++){
     if((*hash)[i].value > (*hash)[maxIndex].value){
       maxIndex = i;
     }
@@ -86,59 +104,54 @@ ptrdiff_t maxIndexHash(Hash **hash){
 
 void bakeTokenizer(Tokenizer tokenizer){
   Hash *hashArray = 0;
-  size_t iteCount = 0;
-
-  for(size_t i = 0; i < tokenizer.token->count - 1; i++){
-    Pair sample = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
-    ptrdiff_t serial = hmgeti(hashArray, sample);
-    if(serial < 0)
-      hmput(hashArray, sample, 1);
-    else
-      hashArray[serial].value += 1;
-  }
+  Token out = {};
+  size_t iteCount = 1;
+  buildHash(&hashArray, tokenizer);
 
   for(;;){
-    if(iteCount % 0x4FF); else printf("Iteration %zu\n", iteCount);
+    if(iteCount % 32); else printf("Iteration %zu\r", iteCount);
     ptrdiff_t maxIndex = maxIndexHash(&hashArray);
-    if(maxIndex <= 1) break;
+    if(hashArray[maxIndex].value <= 3) break;
     Pair maxPair = hashArray[maxIndex].key;
-    unsigned maxToken = tokenizer.pairMap->count;
     da_append(tokenizer.pairMap, maxPair);
+    out.count = 0;
     for(size_t i = 0; i < tokenizer.token->count; i++){
       if(i + 1 >= tokenizer.token->count){
         da_append(&out, tokenizer.token->items[i]);
         break;
       }
       Pair inPlace = {tokenizer.token->items[i], tokenizer.token->items[i + 1]};
-      if(memcmp(&inPlace, &maxPair, sizeof(Pair)) == 0){
-        if(i){
-          inPlace.a = tokenizer.token->items[i - 1];
+      if(memcmp(&inPlace, &maxPair, sizeof(inPlace)) == 0){
+        if(out.count){
+          inPlace.a = out.items[out.count - 1];
           inPlace.b = tokenizer.token->items[i];
-          maxIndex = hmgeti(hashArray, inPlace);
-          assert(maxIndex >= 0);
-          assert(hashArray[maxIndex].value > 0);
-          hashArray[maxIndex].value--;
-          inPlace.b = maxToken;
-          maxIndex = hmgeti(hashArray, inPlace);
-          if(maxIndex < 0) hmput(hashArray, inPlace, 1);
-          else hashArray[maxIndex].value++;
+          decreaseHash(&hashArray, inPlace);
+          inPlace.b = tokenizer.pairMap->count - 1;
+          increaseHash(&hashArray, inPlace);
         }
-        maxIndex = hmgeti(hashArray, maxPair);
-        assert(maxIndex >= 0);
-        assert(hashArray[maxIndex].value > 0);
-        hashArray[maxIndex].value--;
-        da_append(&out, maxToken);
+
+        decreaseHash(&hashArray, maxPair);
+
+        da_append(&out, tokenizer.pairMap->count - 1);
         i++;
-        if(i + 1 >= tokenizer.token->count){
+        if(i + 1 < tokenizer.token->count){
           inPlace.a = tokenizer.token->items[i];
           inPlace.b = tokenizer.token->items[i + 1];
+          decreaseHash(&hashArray, inPlace);
+          
+          inPlace.a = out.items[out.count - 1];
+          increaseHash(&hashArray, inPlace);
         }
       } else{
         da_append(&out, tokenizer.token->items[i]);
       }
     }
+    Token temp = *tokenizer.token;
+    *tokenizer.token = out;
+    out = temp;
     iteCount++;
   }
+  da_free(out);
   hmfree(hashArray);
 }
 
