@@ -40,18 +40,11 @@ int main(){
     #include "imageData.h"
   );
 
-  Mat input = {ld.input.r, ld.input.c};
-  matAlloc(&input);
-  matCopy(ld.input, input);
-
   for(int i = 1; i <= 5000; ++i){
     if(i % 100); else printf("Iteration %i\n", i);
     trainLayerModel(&lm, &ld, 1e-2f, 1e-2f);
   }
   freeLayerData(&ld);
-
-  outputLayerModel(&lm, input);
-  matFree(&input);
   
   printMat(readLayerModelOutput(&lm));
 
