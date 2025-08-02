@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define ACTIVATIONFNIMPL
-#define LAYERMODELIMPL
 #include "LayerModel.h"
 
 void printMat(Mat m){
   for(unsigned i = 0; i < m.r; i++){
     putchar('|');
     for(unsigned j = 0; j < m.c; j++){
-      printf("%.2f\t", readMat(m, i, j));
+      printf("%.2f\t", matRead(m, i, j));
     }
     puts("|");
   }
@@ -37,27 +35,28 @@ int main(){
   lm.layer[2].act = EnumLayerRectify;
   lm.layer[3].act = EnumLayerSoftmax;
 
-  LayerData ld = newLayerData(lm, 10);
-  fillLayerData(ld,
+  LayerData ld = newLayerData(&lm, 10);
+  fillLayerData(&ld,
     #include "imageData.h"
   );
 
-  Mat input = copyMat(ld.input), output = {};
+  Mat input = {ld.input.r, ld.input.c};
+  matAlloc(&input);
+  matCopy(ld.input, input);
 
-  for(int i = 1; i <= 5000; i++){
+  for(int i = 1; i <= 5000; ++i){
     if(i % 100); else printf("Iteration %i\n", i);
-    trainLayerModel(lm, ld, 1e-2f, 1e-2f);
+    trainLayerModel(&lm, &ld, 1e-2f, 1e-2f);
   }
-  freeLayerData(ld);
+  freeLayerData(&ld);
 
-  outputLayerModel(lm, input, &output);
-  freeMat(input);
+  outputLayerModel(&lm, input);
+  matFree(&input);
   
-  printMat(output);
-  freeMat(output);
+  printMat(readLayerModelOutput(&lm));
 
   FILE *f = fopen("Model.bin", "wb");
   saveLayerModel(lm, f);
   fclose(f);
-  freeLayerModel(lm);
+  freeLayerModel(&lm);
 }
