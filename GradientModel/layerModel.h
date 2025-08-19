@@ -10,7 +10,7 @@ struct Layer{
 typedef struct Layer Layer;
 
 Layer newLayer(u32 inp, u32 out){
-  Layer ly = {.weight={inp, out}, .bias={1, out}, .output={0, out, 0}, EnumLayerLinear};
+  Layer ly = {.weight={NULL, inp, out}, .bias={NULL, 1, out}, .output={NULL, 0, out}, EnumLayerLinear};
   matAlloc(&ly.weight);
   matAlloc(&ly.bias);
   matRandomize(ly.weight);
@@ -22,7 +22,7 @@ void outputLayer(Layer *ly, Mat in){
   matDot(in, ly->weight, ly->output);
   u32 batchSize = ly->output.r;
   for(u32 i = 0; i < batchSize; ++i){
-    Mat view = {.r = 1, .c = ly->output.c, .data = matView(ly->output, i, 0)};
+    Mat view = {.data = matView(ly->output, i, 0), .r = 1, .c = ly->output.c};
     matAdd(view, ly->bias);
   }
   if (ly->act) LayerFuncList[ly->act](ly->output);
@@ -92,24 +92,22 @@ void trainLayerModel(LayerModel *restrict lm, LayerData *restrict ld, float eps,
     u32 ite = ly.weight.r * ly.weight.c;
     for (u32 i = 0; i < ite; ++i){
       original = ly.weight.data[i];
-      ly.weight.data[i] -= eps;
       outputLayerModel(lm, ld->input);
       dcost = costLayerModel(lm, ld);
-      ly.weight.data[i] = original + eps;
+      ly.weight.data[i] += eps;
       outputLayerModel(lm, ld->input);
       dcost = costLayerModel(lm, ld) - dcost;
-      dcost /= 2.f * eps;
+      dcost /= eps;
       ly.weight.data[i] = original - rate * dcost;
     }
     for (u32 j = 0; j < ly.bias.c; ++j){
       original = ly.bias.data[j];
-      ly.bias.data[j] -= eps;
       outputLayerModel(lm, ld->input);
       dcost = costLayerModel(lm, ld);
-      ly.bias.data[j] = original + eps;
+      ly.bias.data[j] += eps;
       outputLayerModel(lm, ld->input);
       dcost = costLayerModel(lm, ld) - dcost;
-      dcost /= 2.f * eps;
+      dcost /= eps;
       ly.bias.data[j] = original - rate * dcost;
     }
   }
@@ -123,8 +121,8 @@ void freeLayerModel(LayerModel *lm){
 
 LayerData newLayerData(LayerModel *lm, u32 size){
   LayerData ld = {
-    .input = {size, lm->layer[0].weight.r},
-    .output = {size, lm->layer[lm->layerSize - 1].weight.c}
+    .input = {NULL, size, lm->layer[0].weight.r},
+    .output = {NULL, size, lm->layer[lm->layerSize - 1].weight.c}
   };
   matAlloc(&ld.input);
   matAlloc(&ld.output);

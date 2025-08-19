@@ -1,19 +1,21 @@
+#define ACTIVATIONFNIMPL
+#define LAYERMODELIMPL
 #include <stdio.h>
 #include <stdlib.h>
-#include "LayerModel.h"
+#include <windows.h>
+#include "layerModel.h"
 
 void printMat(Mat m){
   for(unsigned i = 0; i < m.r; i++){
     putchar('|');
     for(unsigned j = 0; j < m.c; j++){
-      printf("%.2f\t", matRead(m, i, j));
+      printf("%.2f\t", m.data[i * m.c + j]);
     }
     puts("|");
   }
-  putchar(10);
 }
 
-LayerModel loadLayerModel(FILE* file){
+LayerModel loadLayerModel(FILE *file){
   LayerModel lm;
   fread(&lm.layerSize, sizeof(size_t), 1, file);
   fread(&lm.loss, sizeof(lm.loss), 1, file);
@@ -28,37 +30,32 @@ LayerModel loadLayerModel(FILE* file){
     fread(&lm.layer[i].bias.c, sizeof(unsigned), 1, file);
     lm.layer[i].bias.data = malloc(sizeof(float) * lm.layer[i].bias.r * lm.layer[i].bias.c);
     fread(lm.layer[i].bias.data, sizeof(float), lm.layer[i].bias.r * lm.layer[i].bias.c, file);
+    lm.layer[i].output.r = 0;
+    lm.layer[i].output.c = lm.layer[i].weight.c;
+    lm.layer[i].output.data = NULL;
   }
   return lm;
 }
 
 int main(){
   FILE *f = fopen("Model.bin", "rb");
+  if(!f){
+    puts("File could not be opened");
+    return 1;
+  }
   LayerModel lm = loadLayerModel(f);
   fclose(f);
 
-  for(u32 i = 0; i < lm.layerSize; ++i){
-    lm.layer[i].output = (Mat){0, lm.layer[i].weight.c, 0};
-  }
+  Mat input = {NULL, 1, 15};
+  matAlloc(&input);
 
-  float stackInp[15];
-  Mat input = {1, lm.layer[0].weight.r, stackInp};
-  matFill(input,
-    1, 1, 0,
-    0, 0, 1,
-    0, 1, 0,
-    0, 0, 1,
-    1, 1, 0
-  );
+  Matrix_expr(input, i + 1 + j);
 
-  outputLayerModel(&lm, input);
   
-  putchar(' ');
-  for(int i = 0; i < 10; i++)
-  printf("%i  \t", i);
-  putchar(10);
+  outputLayerModel(&lm, input);
   
   printMat(readLayerModelOutput(&lm));
 
+  matFree(&input);
   freeLayerModel(&lm);
 }

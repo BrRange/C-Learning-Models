@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <math.h>
 
 #define Matrix_expr(mat, ijexpr)          \
   for (unsigned i = 0; i < mat.r; i++)  \
@@ -11,8 +12,8 @@
   mat.data[i * mat.c + j] = (ijexpr)      //
 
 struct Mat {
-  unsigned r, c;
   float *data;
+  unsigned r, c;
 };
 typedef struct Mat Mat;
 
@@ -55,7 +56,7 @@ static inline void matAlloc(Mat *mat) {
 
 static inline void matFree(Mat *mat) {
   free(mat->data);
-  *mat = (Mat){};
+  *mat = (Mat){0};
 }
 
 void matFillf(Mat mat, ...) {
@@ -144,7 +145,7 @@ float matDeterminant(Mat mat) {
   } else {
     float coSum = 0.f;
     for (unsigned i = 0; i < mat.r; i++) {
-      Mat buffer = {mat.r - 1, mat.c - 1, 0};
+      Mat buffer = {NULL, mat.r - 1, mat.c - 1};
       matAlloc(&buffer);
       matReduce(mat, buffer, i, 0);
       coSum += mat.data[i] * (i & 1 ? -1.f : 1.f) * matDeterminant(buffer);
